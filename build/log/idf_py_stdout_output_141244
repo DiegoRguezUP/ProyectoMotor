@@ -1,0 +1,71 @@
+Command: ninja flash
+[1/5] cd /project/build/esp-idf/esptool_py && /opt/esp-idf-tools/python_env/idf5.5_py3.10_env/bin/python /opt/esp-idf/components/partition_table/check_sizes.py --offset 0x8000 partition --type app /project/build/partition_table/partition-table.bin /project/build/EncoderESP.bin
+EncoderESP.bin binary size 0xc4130 bytes. Smallest app partition is 0x100000 bytes. 0x3bed0 bytes (23%) free.
+[2/5] Performing build step for 'bootloader'
+[1/1] cd /project/build/bootloader/esp-idf/esptool_py && /opt/esp-idf-tools/python_env/idf5.5_py3.10_env/bin/python /opt/esp-idf/components/partition_table/check_sizes.py --offset 0x8000 bootloader 0x1000 /project/build/bootloader/bootloader.bin
+Bootloader binary size 0x6680 bytes. 0x980 bytes (8%) free.
+[2/3] cd /opt/esp-idf/components/esptool_py && /usr/bin/cmake -D IDF_PATH=/opt/esp-idf -D "SERIAL_TOOL=/opt/esp-idf-tools/python_env/idf5.5_py3.10_env/bin/python;;/opt/esp-idf/components/esptool_py/esptool/esptool.py;--chip;esp32" -D "SERIAL_TOOL_ARGS=--before=default_reset;--after=hard_reset;write_flash;@flash_args" -D WORKING_DIRECTORY=/project/build -P /opt/esp-idf/components/esptool_py/run_serial_tool.cmake
+esptool.py --chip esp32 -p /dev/ttyUSB0 -b 460800 --before=default_reset --after=hard_reset write_flash --flash_mode dio --flash_freq 40m --flash_size 2MB 0x1000 bootloader/bootloader.bin 0x10000 EncoderESP.bin 0x8000 partition_table/partition-table.bin
+esptool.py v4.10.dev2
+Serial port /dev/ttyUSB0
+Connecting....
+Chip is ESP32-D0WD-V3 (revision v3.0)
+Features: WiFi, BT, Dual Core, 240MHz, VRef calibration in efuse, Coding Scheme None
+Crystal is 40MHz
+MAC: cc:db:a7:9d:ff:64
+Uploading stub...
+Running stub...
+Stub running...
+Changing baud rate to 460800
+Changed.
+Configuring flash size...
+Flash will be erased from 0x00001000 to 0x00007fff...
+Flash will be erased from 0x00010000 to 0x000d4fff...
+Flash will be erased from 0x00008000 to 0x00008fff...
+SHA digest in image updated
+Compressed 26240 bytes to 16503...
+Writing at 0x00001000... (50 %)
+Writing at 0x000075e3... (100 %)
+Wrote 26240 bytes (16503 compressed) at 0x00001000 in 0.8 seconds (effective 266.1 kbit/s)...
+Hash of data verified.
+Compressed 803120 bytes to 501732...
+Writing at 0x00010000... (3 %)
+Writing at 0x0001cde0... (6 %)
+Writing at 0x00025aa3... (9 %)
+Writing at 0x00030b72... (12 %)
+Writing at 0x00036552... (16 %)
+Writing at 0x0003c74f... (19 %)
+Writing at 0x0004238e... (22 %)
+Writing at 0x00047b2c... (25 %)
+Writing at 0x0004d72d... (29 %)
+Writing at 0x00053411... (32 %)
+Writing at 0x000592d3... (35 %)
+Writing at 0x0005f2af... (38 %)
+Writing at 0x00065666... (41 %)
+Writing at 0x0006ac55... (45 %)
+Writing at 0x0006ff8b... (48 %)
+Writing at 0x00075c14... (51 %)
+Writing at 0x0007b7f9... (54 %)
+Writing at 0x00081007... (58 %)
+Writing at 0x00086926... (61 %)
+Writing at 0x0008c663... (64 %)
+Writing at 0x00091eb9... (67 %)
+Writing at 0x00097a33... (70 %)
+Writing at 0x0009d79b... (74 %)
+Writing at 0x000a30e2... (77 %)
+Writing at 0x000aa236... (80 %)
+Writing at 0x000b37c0... (83 %)
+Writing at 0x000b9514... (87 %)
+Writing at 0x000bf50b... (90 %)
+Writing at 0x000c4fdb... (93 %)
+Writing at 0x000cb31e... (96 %)
+Writing at 0x000d05b1... (100 %)
+Wrote 803120 bytes (501732 compressed) at 0x00010000 in 13.2 seconds (effective 485.5 kbit/s)...
+Hash of data verified.
+Compressed 3072 bytes to 103...
+Writing at 0x00008000... (100 %)
+Wrote 3072 bytes (103 compressed) at 0x00008000 in 0.1 seconds (effective 488.1 kbit/s)...
+Hash of data verified.
+
+Leaving...
+Hard resetting via RTS pin...

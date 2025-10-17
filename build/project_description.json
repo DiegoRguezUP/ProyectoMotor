@@ -1225,7 +1225,7 @@
             "managed_reqs": [],
             "managed_priv_reqs": [],
             "file": "/project/build/esp-idf/main/libmain.a",
-            "sources": [ "/project/main/app_main.c" ],
+            "sources": [ "/project/main/app_main.c", "/project/main/socket_task.c" ],
             "include_dirs": [ "." ]
         },
         "mbedtls": {

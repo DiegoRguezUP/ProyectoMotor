@@ -7,6 +7,7 @@
 #include "driver/ledc.h"
 #include "esp_log.h"
 #include "soc/gpio_struct.h"
+#include "socket_task.h"
 
 #define TAG "MOTOR_UART"
 
@@ -31,9 +32,13 @@
 static volatile long g_pulse_count = 0;
 static volatile uint8_t old_AB = 0;
 static const int8_t QEM[16] = {0,-1,1,0,1,0,0,-1,-1,0,0,1,0,1,-1,0};
-static uint8_t g_pwm_cmd = 0;
 
-// 🔒 Mutex de protección para secciones críticas
+// Variables globales accesibles desde socket_task
+double rpm_filt = 0.0;
+double rpm_ref  = 0.0;
+double pwm_val  = 0.0;
+
+// 🔒 Protección para secciones críticas
 static portMUX_TYPE spinlock = portMUX_INITIALIZER_UNLOCKED;
 
 // ================== ISR encoder ===================
@@ -107,18 +112,24 @@ static void encoder_init(void)
 // ================== UART RX Task ===================
 static void uart_rx_task(void *arg)
 {
-    uint16_t raw_val;
-    while (1) {
-        int len = uart_read_bytes(UART_PORT, (uint8_t *)&raw_val,
-                                  sizeof(uint16_t), pdMS_TO_TICKS(10));
-        if (len == sizeof(uint16_t)) {
-            double duty = ((double)raw_val / 65535.0) * 255.0;
-            if (duty > 255.0) duty = 255.0;
-            if (duty < 0.0) duty = 0.0;
-            g_pwm_cmd = (uint8_t)duty;
+    uint8_t rx_buffer[4];  // 2 bytes rpm_ref + 2 bytes pwm_raw
 
-            ledc_set_duty(LEDC_HIGH_SPEED_MODE, LEDC_CHANNEL_0, g_pwm_cmd);
+    while (1) {
+        int len = uart_read_bytes(UART_PORT, rx_buffer, sizeof(rx_buffer), pdMS_TO_TICKS(20));
+        if (len == sizeof(rx_buffer)) {
+            // Combinar bytes (little endian)
+            uint16_t rpm_ref_raw = (rx_buffer[1] << 8) | rx_buffer[0];
+            uint16_t pwm_raw     = (rx_buffer[3] << 8) | rx_buffer[2];
+
+            // Escalar valores
+            rpm_ref = (double)rpm_ref_raw; // directo en unidades
+            pwm_val = ((double)pwm_raw / 65535.0) * 255.0;
+
+            // Aplicar PWM
+            ledc_set_duty(LEDC_HIGH_SPEED_MODE, LEDC_CHANNEL_0, (uint32_t)pwm_val);
             ledc_update_duty(LEDC_HIGH_SPEED_MODE, LEDC_CHANNEL_0);
+
+            ESP_LOGI(TAG, "RX UART -> rpm_ref: %.1f | pwm_raw: %.1f", rpm_ref, pwm_val);
         }
         vTaskDelay(pdMS_TO_TICKS(5));
     }
@@ -128,7 +139,6 @@ static void uart_rx_task(void *arg)
 static void rpm_tx_task(void *arg)
 {
     const double Ts = SAMPLE_MS / 1000.0;
-    double rpm_filt = 0.0;
 
     while (1) {
         vTaskDelay(pdMS_TO_TICKS(SAMPLE_MS));
@@ -139,7 +149,6 @@ static void rpm_tx_task(void *arg)
         g_pulse_count = 0;
         taskEXIT_CRITICAL(&spinlock);
         
-        // cálculo como en Arduino
         double cycles = (double)pulses / 8.0;
         double revolutions = cycles / (double)PULSES_PER_REV;
         double rpm = (revolutions / Ts) * 60.0;
@@ -147,9 +156,9 @@ static void rpm_tx_task(void *arg)
         if (rpm < 0) rpm = -rpm;
         if (rpm > RPM_MAX) rpm = RPM_MAX;
 
-        // Filtro pasa bajas
         rpm_filt = (ALPHA * rpm) + ((1.0 - ALPHA) * rpm_filt);
 
+        // Mandar rpm filtrada como uint16
         uint16_t rpm_val = (uint16_t)rpm_filt;
         uart_write_bytes(UART_PORT, (const char *)&rpm_val, sizeof(uint16_t));
     }
@@ -162,6 +171,10 @@ void app_main(void)
     uart_init();
     pwm_init();
     encoder_init();
+
+    // Inicializar Wi-Fi y socket
+    wifi_init_sta();
+    xTaskCreatePinnedToCore(socket_task, "socket_task", 4096, NULL, 3, NULL, 1);
 
     xTaskCreatePinnedToCore(uart_rx_task, "uart_rx_task", 2048, NULL, 5, NULL, 0);
     xTaskCreatePinnedToCore(rpm_tx_task, "rpm_tx_task", 4096, NULL, 5, NULL, 1);
