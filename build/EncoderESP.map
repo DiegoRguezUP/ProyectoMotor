@@ -9341,7 +9341,6 @@ LOAD esp-idf/rt/librt.a
 LOAD esp-idf/spiffs/libspiffs.a
 LOAD esp-idf/wifi_provisioning/libwifi_provisioning.a
 LOAD esp-idf/main/libmain.a
-LOAD esp-idf/pi_controller/libpi_controller.a
 LOAD esp-idf/app_trace/libapp_trace.a
 LOAD esp-idf/app_trace/libapp_trace.a
 LOAD esp-idf/cmock/libcmock.a

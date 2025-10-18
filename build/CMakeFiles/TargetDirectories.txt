@@ -845,10 +845,3 @@
 /project/build/esp-idf/main/CMakeFiles/install.dir
 /project/build/esp-idf/main/CMakeFiles/install/local.dir
 /project/build/esp-idf/main/CMakeFiles/install/strip.dir
-/project/build/esp-idf/pi_controller/CMakeFiles/__idf_pi_controller.dir
-/project/build/esp-idf/pi_controller/CMakeFiles/edit_cache.dir
-/project/build/esp-idf/pi_controller/CMakeFiles/rebuild_cache.dir
-/project/build/esp-idf/pi_controller/CMakeFiles/list_install_components.dir
-/project/build/esp-idf/pi_controller/CMakeFiles/install.dir
-/project/build/esp-idf/pi_controller/CMakeFiles/install/local.dir
-/project/build/esp-idf/pi_controller/CMakeFiles/install/strip.dir

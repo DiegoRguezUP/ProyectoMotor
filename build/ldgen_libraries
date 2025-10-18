@@ -158,4 +158,3 @@
 /project/build/esp-idf/wifi_provisioning/libwifi_provisioning.a
 /project/build/esp-idf/json/libjson.a
 /project/build/esp-idf/main/libmain.a
-/project/build/esp-idf/pi_controller/libpi_controller.a
