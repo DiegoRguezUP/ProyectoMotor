@@ -7,6 +7,9 @@
 #include "driver/ledc.h"
 #include "esp_log.h"
 #include "soc/gpio_struct.h"
+#include "wifi_sta.h"
+#include "tcp_client.h"
+#include "telemetry.h"
 
 #define TAG "MOTOR_UART"
 
@@ -32,7 +35,7 @@ static volatile long g_pulse_count = 0;
 static volatile uint8_t old_AB = 0;
 static const int8_t QEM[16] = {0,-1,1,0,1,0,0,-1,-1,0,0,1,0,1,-1,0};
 static uint8_t  g_pwm_cmd  = 0;
-static uint16_t g_rpm_ref  = 0;     // NEW: stores the reference received from Simulink
+static uint16_t g_rpm_ref  = 0;
 
 static portMUX_TYPE spinlock = portMUX_INITIALIZER_UNLOCKED;
 
@@ -69,7 +72,7 @@ static void pwm_init(void)
         .speed_mode       = LEDC_HIGH_SPEED_MODE,
         .timer_num        = LEDC_TIMER_0,
         .duty_resolution  = LEDC_TIMER_8_BIT,
-        .freq_hz          = 100000,
+        .freq_hz          = 20000,
         .clk_cfg          = LEDC_AUTO_CLK
     };
     ledc_timer_config(&timer);
@@ -105,22 +108,19 @@ static void encoder_init(void)
 }
 
 // ================== UART RX Task ===================
-// Expect exactly 2x uint16 in this order: [rpm_ref, pwm]
 static void uart_rx_task(void *arg)
 {
-    uint16_t rx_buf[2];  // rx_buf[0]=rpm_ref, rx_buf[1]=pwm_raw
+    uint16_t rx_buf[2];  // [rpm_ref, pwm]
     while (1) {
         int len = uart_read_bytes(UART_PORT, (uint8_t *)rx_buf,
                                   sizeof(rx_buf), pdMS_TO_TICKS(20));
         if (len == sizeof(rx_buf)) {
-            g_rpm_ref = rx_buf[0];         // first word = rpm_ref
-
-            uint16_t raw_pwm = rx_buf[1];  // second word = pwm (0..65535)
+            g_rpm_ref = rx_buf[0];
+            uint16_t raw_pwm = rx_buf[1];
             double duty = ((double)raw_pwm / 65535.0) * 255.0;
             if (duty > 255.0) duty = 255.0;
             if (duty < 0.0)   duty = 0.0;
             g_pwm_cmd = (uint8_t)duty;
-
             ledc_set_duty(LEDC_HIGH_SPEED_MODE, LEDC_CHANNEL_0, g_pwm_cmd);
             ledc_update_duty(LEDC_HIGH_SPEED_MODE, LEDC_CHANNEL_0);
         }
@@ -146,14 +146,10 @@ static void rpm_tx_task(void *arg)
         double cycles = (double)pulses / 8.0;
         double revolutions = cycles / (double)PULSES_PER_REV;
         double rpm = fabs((revolutions / Ts) * 60.0);
-
         if (rpm > RPM_MAX) rpm = RPM_MAX;
-
         rpm_filt = (ALPHA * rpm) + ((1.0 - ALPHA) * rpm_filt);
 
-        uint16_t rpm_val = (uint16_t)rpm_filt;
-        uart_write_bytes(UART_PORT, (const char *)&rpm_val, sizeof(uint16_t));
-        uart_write_bytes(UART_PORT, (const char *)&g_rpm_ref, sizeof(uint16_t)); // Just for debugging
+        telemetry_push(g_rpm_ref, (uint16_t)rpm_filt, g_pwm_cmd);
     }
 }
 
@@ -161,10 +157,19 @@ static void rpm_tx_task(void *arg)
 void app_main(void)
 {
     esp_log_level_set("*", ESP_LOG_WARN);
+
     uart_init();
     pwm_init();
     encoder_init();
+    telemetry_init();
 
+    // 1️⃣ Connect to Wi-Fi
+    wifi_sta_init();
+
+    // 2️⃣ Start TCP client
+    tcp_client_start();
+
+    // 3️⃣ Start control tasks
     xTaskCreatePinnedToCore(uart_rx_task, "uart_rx_task", 2048, NULL, 5, NULL, 0);
     xTaskCreatePinnedToCore(rpm_tx_task, "rpm_tx_task", 4096, NULL, 5, NULL, 1);
 }

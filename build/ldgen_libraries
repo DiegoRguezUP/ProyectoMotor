@@ -157,4 +157,9 @@
 /project/build/esp-idf/spiffs/libspiffs.a
 /project/build/esp-idf/wifi_provisioning/libwifi_provisioning.a
 /project/build/esp-idf/json/libjson.a
+/project/build/esp-idf/protocol_examples_common/libprotocol_examples_common.a
+/project/build/esp-idf/esp_eth/libesp_eth.a
+/project/build/esp-idf/HAL/libHAL.a
+/project/build/esp-idf/protocol_examples_common/libprotocol_examples_common.a
 /project/build/esp-idf/main/libmain.a
+/project/build/esp-idf/HAL/libHAL.a

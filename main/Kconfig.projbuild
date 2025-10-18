@@ -1,0 +1,53 @@
+menu "Network and Telemetry Configuration"
+
+config NET_SERVER_IP
+    string "Server IP address"
+    default "192.168.1.100"
+    help
+        IP address of the TCP server to send telemetry data to.
+
+config NET_SERVER_PORT
+    int "Server TCP port"
+    default 13000
+    help
+        TCP port of the server.
+
+config SEND_PERIOD_MS
+    int "Telemetry send period (ms)"
+    default 1000
+    help
+        Period between telemetry transmissions (only used in PERIODIC mode).
+
+choice SEND_MODE
+    prompt "Telemetry send mode"
+    default SEND_MODE_PERIODIC
+    help
+        Select how often data is sent.
+
+config SEND_MODE_PERIODIC
+    bool "Periodic (every SEND_PERIOD_MS)"
+config SEND_MODE_FAST
+    bool "Fast (send every sample)"
+endchoice
+
+choice PAYLOAD_FORMAT
+    prompt "Telemetry payload format"
+    default PAYLOAD_FORMAT_CSV
+    help
+        Format used when sending telemetry data.
+
+config PAYLOAD_FORMAT_CSV
+    bool "CSV format"
+config PAYLOAD_FORMAT_JSON
+    bool "JSON Lines format"
+config PAYLOAD_FORMAT_BINARY
+    bool "Binary format"
+endchoice
+
+config INCLUDE_TIMESTAMP
+    bool "Include timestamp in telemetry"
+    default y
+    help
+        When enabled, includes milliseconds since boot as first CSV column.
+
+endmenu
