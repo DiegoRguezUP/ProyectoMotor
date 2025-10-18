@@ -16,8 +16,10 @@ Command: cmake -G Ninja -DPYTHON_DEPS_CHECKED=1 -DPYTHON=/opt/esp-idf-tools/pyth
 -- Check for working CXX compiler: /opt/esp-idf-tools/tools/xtensa-esp-elf/esp-14.2.0_20241119/xtensa-esp-elf/bin/xtensa-esp32-elf-g++ - skipped
 -- Detecting CXX compile features
 -- Detecting CXX compile features - done
--- git rev-parse returned 'fatal: not a git repository (or any parent up to mount point /)
-Stopping at filesystem boundary (GIT_DISCOVERY_ACROSS_FILESYSTEM not set).'
+-- git rev-parse returned 'fatal: detected dubious ownership in repository at '/project'
+To add an exception for this directory, call:
+
+	git config --global --add safe.directory /project'
 -- Could not use 'git describe' to determine PROJECT_VER.
 -- Building ESP-IDF components for target esp32
 -- Project sdkconfig file /project/sdkconfig

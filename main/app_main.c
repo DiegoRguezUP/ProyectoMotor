@@ -10,7 +10,7 @@
 
 #define TAG "MOTOR_UART"
 
-// ================== Pines ==================
+// ================== Pins ==================
 #define PIN_ENC_A      GPIO_NUM_25
 #define PIN_ENC_B      GPIO_NUM_26
 #define PIN_PWM        GPIO_NUM_13
@@ -22,21 +22,21 @@
 // ================== Encoder ===================
 #define PULSES_PER_REV 199
 #define SAMPLE_MS       10
-#define ALPHA           0.1f   // filtro pasa bajas
+#define ALPHA           0.1f
 
-// ================== Escalado ===================
+// ================== Scaling ===================
 #define RPM_MAX         10000.0
 
-// ================== Variables globales ===================
+// ================== Globals ===================
 static volatile long g_pulse_count = 0;
 static volatile uint8_t old_AB = 0;
 static const int8_t QEM[16] = {0,-1,1,0,1,0,0,-1,-1,0,0,1,0,1,-1,0};
-static uint8_t g_pwm_cmd = 0;
+static uint8_t  g_pwm_cmd  = 0;
+static uint16_t g_rpm_ref  = 0;     // NEW: stores the reference received from Simulink
 
-// 🔒 Mutex de protección para secciones críticas
 static portMUX_TYPE spinlock = portMUX_INITIALIZER_UNLOCKED;
 
-// ================== ISR encoder ===================
+// ================== Encoder ISR ===================
 static void IRAM_ATTR encoder_isr(void *arg)
 {
     uint32_t gpio_in = GPIO.in;
@@ -105,16 +105,20 @@ static void encoder_init(void)
 }
 
 // ================== UART RX Task ===================
+// Expect exactly 2x uint16 in this order: [rpm_ref, pwm]
 static void uart_rx_task(void *arg)
 {
-    uint16_t raw_val;
+    uint16_t rx_buf[2];  // rx_buf[0]=rpm_ref, rx_buf[1]=pwm_raw
     while (1) {
-        int len = uart_read_bytes(UART_PORT, (uint8_t *)&raw_val,
-                                  sizeof(uint16_t), pdMS_TO_TICKS(10));
-        if (len == sizeof(uint16_t)) {
-            double duty = ((double)raw_val / 65535.0) * 255.0;
+        int len = uart_read_bytes(UART_PORT, (uint8_t *)rx_buf,
+                                  sizeof(rx_buf), pdMS_TO_TICKS(20));
+        if (len == sizeof(rx_buf)) {
+            g_rpm_ref = rx_buf[0];         // first word = rpm_ref
+
+            uint16_t raw_pwm = rx_buf[1];  // second word = pwm (0..65535)
+            double duty = ((double)raw_pwm / 65535.0) * 255.0;
             if (duty > 255.0) duty = 255.0;
-            if (duty < 0.0) duty = 0.0;
+            if (duty < 0.0)   duty = 0.0;
             g_pwm_cmd = (uint8_t)duty;
 
             ledc_set_duty(LEDC_HIGH_SPEED_MODE, LEDC_CHANNEL_0, g_pwm_cmd);
@@ -138,20 +142,18 @@ static void rpm_tx_task(void *arg)
         pulses = g_pulse_count;
         g_pulse_count = 0;
         taskEXIT_CRITICAL(&spinlock);
-        
-        // cálculo como en Arduino
+
         double cycles = (double)pulses / 8.0;
         double revolutions = cycles / (double)PULSES_PER_REV;
-        double rpm = (revolutions / Ts) * 60.0;
+        double rpm = fabs((revolutions / Ts) * 60.0);
 
-        if (rpm < 0) rpm = -rpm;
         if (rpm > RPM_MAX) rpm = RPM_MAX;
 
-        // Filtro pasa bajas
         rpm_filt = (ALPHA * rpm) + ((1.0 - ALPHA) * rpm_filt);
 
         uint16_t rpm_val = (uint16_t)rpm_filt;
         uart_write_bytes(UART_PORT, (const char *)&rpm_val, sizeof(uint16_t));
+        uart_write_bytes(UART_PORT, (const char *)&g_rpm_ref, sizeof(uint16_t)); // Just for debugging
     }
 }
 
